@@ -6,6 +6,8 @@ Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repo
 
 It also checks the failure points that show up in AI-built apps made with Lovable, Bolt, Replit, Cursor, v0, Base44, Supabase, Firebase, Stripe, and AI API integrations: exposed private keys, public frontend env vars that look private, unsigned Stripe webhooks, missing Firebase rules, undocumented Supabase RLS, debug API routes, and missing AI usage guardrails.
 
+Tool page: https://tatelyman.github.io/tate-web-services/shipcheck.html
+
 ## Install
 
 Run from npm:
@@ -89,6 +91,12 @@ JSON output is designed for automation:
 ```bash
 shipcheck . --format json
 ```
+
+## Manual Review
+
+Shipcheck is the first pass. If the report finds a blocker in an app you own or are authorized to inspect, you can request a manual review from the tool page.
+
+Manual reviews focus on auth, data rules, env boundaries, Stripe/webhooks, deploy config, and the first paid user flow.
 
 ## Exit Codes
 

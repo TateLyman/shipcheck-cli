@@ -3,6 +3,14 @@
   "version": "0.2.0",
   "description": "Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repositories.",
   "type": "module",
+  "homepage": "https://tatelyman.github.io/tate-web-services/shipcheck.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TateLyman/shipcheck-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TateLyman/shipcheck-cli/issues"
+  },
   "bin": {
     "shipcheck": "dist/src/cli.js"
   },
