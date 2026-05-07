@@ -4,7 +4,7 @@
   "description": "Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repositories.",
   "type": "module",
   "bin": {
-    "shipcheck": "./dist/src/cli.js"
+    "shipcheck": "dist/src/cli.js"
   },
   "files": [
     "dist/src",
