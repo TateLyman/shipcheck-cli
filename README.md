@@ -1,8 +1,10 @@
 # shipcheck-cli
 
-Release-readiness scanner for JavaScript and TypeScript repositories.
+Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repositories.
 
 `shipcheck` inspects a repo before you publish, hand it to a client, or ask someone to review it. It catches the boring issues that make projects feel unfinished: missing CI, missing lockfiles, thin documentation, loose dependency versions, unsafe package scripts, and local environment-file hygiene problems.
+
+It also checks the failure points that show up in AI-built apps made with Lovable, Bolt, Replit, Cursor, v0, Base44, Supabase, Firebase, Stripe, and AI API integrations: exposed private keys, public frontend env vars that look private, unsigned Stripe webhooks, missing Firebase rules, undocumented Supabase RLS, debug API routes, and missing AI usage guardrails.
 
 ## Install
 
@@ -47,6 +49,15 @@ shipcheck . --strict --fail-on medium
 - GitHub Actions workflow presence
 - TypeScript files without `tsconfig.json`
 - `.env` risk and missing `.env.example` when environment variables are used
+- hardcoded private-looking secrets such as Stripe secret keys and AI provider API keys
+- public frontend env names that include `SECRET`, `SERVICE`, `PRIVATE`, `TOKEN`, or `WEBHOOK`
+- Stripe webhook handlers that do not visibly verify signatures
+- Firebase usage without checked-in `firestore.rules` or `storage.rules`
+- Supabase usage without visible RLS migrations, policy notes, or access-boundary proof
+- debug, seed, reset, mock, or test API routes that may ship to production
+- AI/API usage without obvious rate limits, quotas, throttling, or cost guardrails
+
+Shipcheck is a defensive static scanner, not a penetration test. It looks for review gaps and risky patterns in repos you own or are authorized to inspect.
 
 ## Output
 

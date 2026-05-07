@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   }
 
   if (args.version) {
-    console.log("0.1.0");
+    console.log("0.2.0");
     return;
   }
 
@@ -108,7 +108,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
 function helpText(): string {
   return [
-    "shipcheck - release-readiness scanner for JavaScript and TypeScript repos",
+    "shipcheck - release-readiness and AI-app exposure scanner for JavaScript and TypeScript repos",
     "",
     "Usage:",
     "  shipcheck [path] [--format text|markdown|json] [--fail-on info|low|medium|high] [--strict]",

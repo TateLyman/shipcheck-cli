@@ -1,7 +1,7 @@
 {
   "name": "shipcheck-cli",
-  "version": "0.1.0",
-  "description": "Release-readiness scanner for JavaScript and TypeScript repositories.",
+  "version": "0.2.0",
+  "description": "Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repositories.",
   "type": "module",
   "bin": {
     "shipcheck": "./dist/src/cli.js"
@@ -21,6 +21,11 @@
     "cli",
     "release",
     "audit",
+    "ai-app",
+    "vibe-coding",
+    "security",
+    "supabase",
+    "stripe",
     "typescript",
     "javascript"
   ],

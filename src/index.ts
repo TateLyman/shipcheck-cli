@@ -75,6 +75,7 @@ export async function scanRepository(options: ScanOptions): Promise<ScanReport> 
   await checkCi(root, findings);
   await checkTypeScript(root, findings);
   await checkEnvHygiene(root, findings);
+  await checkAiAppExposure(root, pkg, findings);
 
   if (pkg) {
     checkScripts(pkg, findings, strict);
@@ -256,6 +257,189 @@ async function checkEnvHygiene(root: string, findings: Finding[]): Promise<void>
       message: "New contributors cannot tell which environment variables are required.",
       remediation: "Add .env.example with placeholder values and document each variable.",
       file: ".env.example"
+    });
+  }
+}
+
+async function checkAiAppExposure(root: string, pkg: PackageJson | null, findings: Finding[]): Promise<void> {
+  const files = (await listFiles(root, 5)).filter(isProductionRelevantFile);
+
+  await checkHardcodedSecrets(root, files, findings);
+  await checkStripeWebhookVerification(root, pkg, files, findings);
+  await checkFirebaseRules(root, pkg, files, findings);
+  await checkSupabaseRls(root, pkg, files, findings);
+  await checkDebugRoutes(root, files, findings);
+  await checkAiUsageGuardrails(root, pkg, files, findings);
+}
+
+async function checkHardcodedSecrets(root: string, files: string[], findings: Finding[]): Promise<void> {
+  const secretPatterns: Array<{ pattern: RegExp; label: string }> = [
+    { pattern: /\bsk_live_[A-Za-z0-9]{12,}\b/, label: "Stripe live secret key" },
+    { pattern: /\bsk_test_[A-Za-z0-9]{12,}\b/, label: "Stripe test secret key" },
+    { pattern: /\brk_live_[A-Za-z0-9]{12,}\b/, label: "Stripe restricted key" },
+    { pattern: /\b(?:OPENAI|ANTHROPIC|GROQ|XAI|GEMINI|GOOGLE)_API_KEY\s*[:=]\s*["'][^"'\s]{20,}["']/i, label: "AI provider API key" },
+    { pattern: /\bSUPABASE_SERVICE_ROLE(?:_KEY)?\s*[:=]\s*["'][^"'\s]{20,}["']/i, label: "Supabase service-role key" }
+  ];
+
+  for (const file of files.filter(isSourceOrConfigFile)) {
+    const text = await readText(file);
+    if (!text) {
+      continue;
+    }
+
+    const secretMatch = secretPatterns.find(({ pattern }) => pattern.test(text));
+    if (secretMatch) {
+      findings.push({
+        id: "hardcoded-private-secret",
+        title: "Private secret appears in repo text",
+        severity: "high",
+        message: `Detected a likely ${secretMatch.label} in a source or config file.`,
+        remediation: "Rotate the key, move it to server-only environment variables, and make sure it is not reachable from browser bundles.",
+        file: relativeTo(root, file)
+      });
+      return;
+    }
+
+    const publicPrivateEnv = /\b(?:NEXT_PUBLIC|VITE|PUBLIC)_[A-Z0-9_]*(?:SECRET|SERVICE|PRIVATE|TOKEN|WEBHOOK)[A-Z0-9_]*\b/;
+    if (publicPrivateEnv.test(text)) {
+      findings.push({
+        id: "public-private-env-name",
+        title: "Private-looking env var is exposed to browser code",
+        severity: "high",
+        message: "The repo references a public frontend env var name that includes secret, service, private, token, or webhook.",
+        remediation: "Rename private values without a public prefix and read them only from server routes or server actions.",
+        file: relativeTo(root, file)
+      });
+      return;
+    }
+
+    const serviceRoleReference = /process\.env\.(?:SUPABASE_SERVICE_ROLE|SUPABASE_SERVICE_ROLE_KEY)\b|["']service_role["']\s*[:=]|serviceRoleKey\s*[:=]/.test(text);
+    if (/\bsupabase\b/i.test(text) && serviceRoleReference) {
+      findings.push({
+        id: "supabase-service-role-reference",
+        title: "Supabase service role appears in application code",
+        severity: "high",
+        message: "Service-role credentials bypass row-level security and should not appear in frontend or shared application code.",
+        remediation: "Keep service-role usage inside tightly scoped server-only admin code, rotate any exposed key, and verify no client bundle contains it.",
+        file: relativeTo(root, file)
+      });
+      return;
+    }
+  }
+}
+
+async function checkStripeWebhookVerification(
+  root: string,
+  pkg: PackageJson | null,
+  files: string[],
+  findings: Finding[]
+): Promise<void> {
+  const usesStripe = hasDependency(pkg, "stripe") || await repoTextMatches(files, /\bstripe\b/i);
+  if (!usesStripe) {
+    return;
+  }
+
+  for (const file of files.filter(isSourceOrConfigFile)) {
+    const relative = relativeTo(root, file);
+    const text = await readText(file);
+    if (!text) {
+      continue;
+    }
+
+    const looksLikeWebhook = /webhook/i.test(relative) || /checkout\.session|invoice\.|customer\.subscription|payment_intent/i.test(text);
+    const verifiesSignature = /webhooks\.constructEvent|constructEvent\(/.test(text);
+    if (looksLikeWebhook && /\bstripe\b/i.test(text) && !verifiesSignature) {
+      findings.push({
+        id: "unsigned-stripe-webhook",
+        title: "Stripe webhook handler may skip signature verification",
+        severity: "high",
+        message: "A Stripe webhook-like file handles Stripe events without an obvious constructEvent signature check.",
+        remediation: "Verify the raw request body with stripe.webhooks.constructEvent before granting paid access, credits, roles, or orders.",
+        file: relative
+      });
+      return;
+    }
+  }
+}
+
+async function checkFirebaseRules(root: string, pkg: PackageJson | null, files: string[], findings: Finding[]): Promise<void> {
+  const usesFirebase = hasDependency(pkg, "firebase") || hasDependency(pkg, "@firebase/app")
+    || await repoTextMatches(files, /\b(?:getFirestore|initializeApp)\(|firebaseConfig\s*=/);
+
+  if (!usesFirebase) {
+    return;
+  }
+
+  const hasFirestoreRules = await exists(path.join(root, "firestore.rules"));
+  const hasStorageRules = await exists(path.join(root, "storage.rules"));
+  if (!hasFirestoreRules && !hasStorageRules) {
+    findings.push({
+      id: "missing-firebase-rules",
+      title: "Firebase app has no checked-in security rules",
+      severity: "medium",
+      message: "Firebase projects need explicit Firestore or Storage rules to make user-data boundaries reviewable.",
+      remediation: "Commit firestore.rules or storage.rules and test denied reads/writes with at least two separate users.",
+      file: "firestore.rules"
+    });
+  }
+}
+
+async function checkSupabaseRls(root: string, pkg: PackageJson | null, files: string[], findings: Finding[]): Promise<void> {
+  const usesSupabase = hasDependency(pkg, "@supabase/supabase-js")
+    || await repoTextMatches(files, /\bcreateClient\([^)]*supabase|process\.env\.(?:NEXT_PUBLIC_)?SUPABASE_URL|supabaseUrl\s*=/i);
+  if (!usesSupabase) {
+    return;
+  }
+
+  const hasSupabaseFolder = await exists(path.join(root, "supabase"));
+  const hasRlsNotes = await repoTextMatches(files, /\b(row level security|rls|auth\.uid\(\)|policy)\b/i);
+  if (!hasSupabaseFolder && !hasRlsNotes) {
+    findings.push({
+      id: "undocumented-supabase-rls",
+      title: "Supabase usage has no visible RLS proof",
+      severity: "medium",
+      message: "The repo uses Supabase, but the scan did not find migrations, policies, or documentation showing row-level security was tested.",
+      remediation: "Add Supabase migrations or a short launch note showing RLS policies and two-user access-boundary tests.",
+      file: "supabase"
+    });
+  }
+}
+
+async function checkDebugRoutes(root: string, files: string[], findings: Finding[]): Promise<void> {
+  const riskyRoute = files.find((file) => {
+    const relative = relativeTo(root, file).replace(/\\/g, "/");
+    return /(?:^|\/)(?:app|pages|src\/app|src\/pages)\/api\/(?:debug|test|dev|seed|mock|reset)(?:\/|\.|-)/i.test(relative);
+  });
+
+  if (riskyRoute) {
+    findings.push({
+      id: "debug-api-route",
+      title: "Debug or seed API route may ship to production",
+      severity: "medium",
+      message: "Debug, test, seed, reset, and mock API routes are common AI-app leftovers that can expose data or mutate production state.",
+      remediation: "Remove the route, gate it behind server-side admin checks, or make it impossible to deploy in production.",
+      file: relativeTo(root, riskyRoute)
+    });
+  }
+}
+
+async function checkAiUsageGuardrails(root: string, pkg: PackageJson | null, files: string[], findings: Finding[]): Promise<void> {
+  const usesAiProvider = hasAnyDependency(pkg, ["openai", "@anthropic-ai/sdk", "ai", "@google/generative-ai"])
+    || await repoTextMatches(files, /\b(?:from\s+["']openai["']|require\(["']openai["']\)|new\s+OpenAI\(|generateText\(|streamText\(|chat\.completions)\b/i);
+
+  if (!usesAiProvider) {
+    return;
+  }
+
+  const hasCostGuardrail = await repoTextMatches(files, /\b(rateLimit|rate-limit|quota|usageLimit|usage_limit|throttle|limiter|upstash\/ratelimit)\b/i);
+  if (!hasCostGuardrail) {
+    findings.push({
+      id: "missing-ai-usage-guardrail",
+      title: "AI/API usage has no obvious quota or rate limit",
+      severity: "low",
+      message: "Apps that call paid AI APIs need usage guardrails so one user or bot cannot run up costs.",
+      remediation: "Add per-user quotas, route-level rate limits, abuse logging, or a billing-aware usage cap around expensive AI actions.",
+      file: "package.json"
     });
   }
 }
@@ -445,6 +629,57 @@ async function listFiles(root: string, maxDepth: number): Promise<string[]> {
 
   await walk(root, 0);
   return output;
+}
+
+function hasDependency(pkg: PackageJson | null, name: string): boolean {
+  if (!pkg) {
+    return false;
+  }
+
+  return Boolean(pkg.dependencies?.[name] || pkg.devDependencies?.[name] || pkg.peerDependencies?.[name]);
+}
+
+function hasAnyDependency(pkg: PackageJson | null, names: string[]): boolean {
+  return names.some((name) => hasDependency(pkg, name));
+}
+
+function isSourceOrConfigFile(file: string): boolean {
+  const basename = path.basename(file).toLowerCase();
+  if (basename.endsWith("-lock.json") || basename.endsWith(".lock") || basename === "license") {
+    return false;
+  }
+
+  const extension = path.extname(file).toLowerCase();
+  return [
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".mjs",
+    ".cjs",
+    ".json",
+    ".env",
+    ".local",
+    ".toml",
+    ".yaml",
+    ".yml"
+  ].includes(extension) || basename.startsWith(".env");
+}
+
+function isProductionRelevantFile(file: string): boolean {
+  const normalized = file.replace(/\\/g, "/").toLowerCase();
+  const basename = path.basename(normalized);
+  return !normalized.includes("/test/")
+    && !normalized.includes("/tests/")
+    && !normalized.includes("/__tests__/")
+    && !normalized.includes("/fixtures/")
+    && !normalized.includes("/fixture/")
+    && !basename.includes(".test.")
+    && !basename.includes(".spec.");
+}
+
+function relativeTo(root: string, file: string): string {
+  return path.relative(root, file) || path.basename(file);
 }
 
 function countTotals(findings: Finding[]): Record<Severity, number> {

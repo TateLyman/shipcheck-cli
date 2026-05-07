@@ -61,6 +61,57 @@ test("flags dangerous scripts and loose dependencies", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "loose-dependency-version"), true);
 });
 
+test("flags AI-app exposure risks", async () => {
+  const stripeSecret = "sk_live_" + "1234567890abcdef";
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        stripe: "^18.0.0",
+        "@supabase/supabase-js": "^2.0.0",
+        openai: "^5.0.0"
+      }
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nRun the CLI, inspect the report, and fix any warnings before release. This paragraph keeps the README above the minimum size used by the scanner.\n\n## Verification\n\nRun npm test before every release.",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    "src/app/api/stripe/webhook.ts": "const stripe = {};\nexport async function POST() {\n  const event = { type: 'checkout.session.completed' };\n  return event;\n}\n",
+    "src/lib/client.ts": `export const leaked = '${stripeSecret}';\nexport const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;\n`,
+    "src/app/api/debug/route.ts": "export async function POST() { return Response.json({ ok: true }); }\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "hardcoded-private-secret"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "unsigned-stripe-webhook"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "undocumented-supabase-rls"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "debug-api-route"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "missing-ai-usage-guardrail"), true);
+});
+
+test("flags Firebase projects without checked-in rules", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        firebase: "^12.0.0"
+      }
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nRun the CLI, inspect the report, and fix any warnings before release. This paragraph keeps the README above the minimum size used by the scanner.\n\n## Verification\n\nRun npm test before every release.",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    "src/firebase.ts": "import { initializeApp } from 'firebase/app';\nexport const app = initializeApp({});\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "missing-firebase-rules"), true);
+});
+
 test("formats Markdown reports for client handoff", async () => {
   const root = await fixture({
     "package.json": JSON.stringify({
