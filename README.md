@@ -8,6 +8,14 @@ It also checks the failure points that show up in AI-built apps made with Lovabl
 
 ## Install
 
+Run from GitHub without publishing to npm:
+
+```bash
+npx --yes github:TateLyman/shipcheck-cli .
+```
+
+Clone and build locally:
+
 ```bash
 npm install
 npm run build
