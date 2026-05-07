@@ -49,6 +49,32 @@ shipcheck ../client-app --format markdown
 shipcheck . --strict --fail-on medium
 ```
 
+## GitHub Action
+
+Add Shipcheck as a release gate in any JS/TS repo:
+
+```yaml
+name: shipcheck
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  shipcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: TateLyman/shipcheck-cli@main
+        with:
+          fail-on: medium
+          strict: true
+```
+
+The action runs the npm package with `npx`, so target repos do not need to add Shipcheck as a dependency.
+
 ## What It Checks
 
 - `package.json` exists and has repeatable `test` and `build` scripts

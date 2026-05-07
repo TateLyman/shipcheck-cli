@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   }
 
   if (args.version) {
-    console.log("0.2.0");
+    console.log("0.2.1");
     return;
   }
 

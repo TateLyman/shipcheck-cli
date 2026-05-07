@@ -1,0 +1,49 @@
+name: Shipcheck
+description: Run Shipcheck against a JavaScript or TypeScript repository before release.
+author: Tate Lyman
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Repository path to scan.
+    required: false
+    default: "."
+  format:
+    description: Output format. Use text, markdown, or json.
+    required: false
+    default: "text"
+  fail-on:
+    description: Lowest severity that should fail the workflow. Use info, low, medium, or high.
+    required: false
+    default: "high"
+  strict:
+    description: Set to true to enable stricter release-readiness checks.
+    required: false
+    default: "false"
+  version:
+    description: shipcheck-cli npm version to run.
+    required: false
+    default: "latest"
+
+runs:
+  using: composite
+  steps:
+    - name: Run Shipcheck
+      shell: bash
+      env:
+        SHIPCHECK_PATH: ${{ inputs.path }}
+        SHIPCHECK_FORMAT: ${{ inputs.format }}
+        SHIPCHECK_FAIL_ON: ${{ inputs.fail-on }}
+        SHIPCHECK_STRICT: ${{ inputs.strict }}
+        SHIPCHECK_VERSION: ${{ inputs.version }}
+      run: |
+        args=("$SHIPCHECK_PATH" "--format" "$SHIPCHECK_FORMAT" "--fail-on" "$SHIPCHECK_FAIL_ON")
+
+        if [[ "$SHIPCHECK_STRICT" == "true" ]]; then
+          args+=("--strict")
+        fi
+
+        npx --yes "shipcheck-cli@$SHIPCHECK_VERSION" "${args[@]}"
