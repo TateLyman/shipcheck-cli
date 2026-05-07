@@ -1,0 +1,36 @@
+{
+  "name": "shipcheck-cli",
+  "version": "0.1.0",
+  "description": "Release-readiness scanner for JavaScript and TypeScript repositories.",
+  "type": "module",
+  "bin": {
+    "shipcheck": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "check": "npm run lint && npm test"
+  },
+  "keywords": [
+    "cli",
+    "release",
+    "audit",
+    "typescript",
+    "javascript"
+  ],
+  "author": "Tate Lyman",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
