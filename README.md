@@ -51,6 +51,8 @@ shipcheck . --strict --fail-on medium
 
 ## GitHub Action
 
+Action repo: https://github.com/TateLyman/shipcheck-action
+
 Add Shipcheck as a release gate in any JS/TS repo:
 
 ```yaml
@@ -67,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: TateLyman/shipcheck-cli@main
+      - uses: TateLyman/shipcheck-action@v1
         with:
           fail-on: medium
           strict: true
