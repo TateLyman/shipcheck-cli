@@ -28,6 +28,7 @@ export type ScanReport = {
 };
 
 type PackageJson = {
+  name?: string;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -35,6 +36,20 @@ type PackageJson = {
   packageManager?: string;
   license?: string;
   type?: string;
+  mcpName?: string;
+  keywords?: string[];
+};
+
+type ServerJson = {
+  name?: string;
+  packages?: Array<{
+    registryType?: string;
+    identifier?: string;
+    version?: string;
+    transport?: {
+      type?: string;
+    };
+  }>;
 };
 
 const severityRank: Record<Severity, number> = {
@@ -76,6 +91,7 @@ export async function scanRepository(options: ScanOptions): Promise<ScanReport> 
   await checkTypeScript(root, findings);
   await checkEnvHygiene(root, findings);
   await checkAiAppExposure(root, pkg, findings);
+  await checkMcpReleaseMetadata(root, pkg, findings);
 
   if (pkg) {
     checkScripts(pkg, findings, strict);
@@ -111,6 +127,20 @@ async function readPackageJson(root: string): Promise<PackageJson | null> {
 
   try {
     return JSON.parse(body) as PackageJson;
+  } catch {
+    return null;
+  }
+}
+
+async function readServerJson(root: string): Promise<ServerJson | null> {
+  const serverPath = path.join(root, "server.json");
+  const body = await readText(serverPath);
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body) as ServerJson;
   } catch {
     return null;
   }
@@ -245,7 +275,7 @@ async function checkEnvHygiene(root: string, findings: Finding[]): Promise<void>
     });
   }
 
-  const sourceFiles = await listFiles(root, 4);
+  const sourceFiles = (await listFiles(root, 4)).filter(isProductionRelevantFile);
   const likelyUsesEnv = sourceFiles.some((file) => file.endsWith(".js") || file.endsWith(".ts"))
     && await repoTextMatches(sourceFiles, /process\.env(?:\.[A-Z_][A-Z0-9_]*|\[['"][A-Z_][A-Z0-9_]*['"]\])/);
 
@@ -440,6 +470,108 @@ async function checkAiUsageGuardrails(root: string, pkg: PackageJson | null, fil
       message: "Apps that call paid AI APIs need usage guardrails so one user or bot cannot run up costs.",
       remediation: "Add per-user quotas, route-level rate limits, abuse logging, or a billing-aware usage cap around expensive AI actions.",
       file: "package.json"
+    });
+  }
+}
+
+async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, findings: Finding[]): Promise<void> {
+  const hasServerJson = await exists(path.join(root, "server.json"));
+  const isLikelyMcpServer = Boolean(pkg && (
+    pkg.mcpName
+    || hasAnyDependency(pkg, ["@modelcontextprotocol/sdk", "@modelcontextprotocol/server"])
+    || pkg.keywords?.some((keyword) => /\bmcp\b|model-context-protocol/i.test(keyword))
+    || /\bmcp\b/i.test(pkg.name ?? "")
+  )) || hasServerJson;
+
+  if (!isLikelyMcpServer) {
+    return;
+  }
+
+  if (!pkg?.mcpName) {
+    findings.push({
+      id: "missing-mcp-name",
+      title: "MCP package is missing mcpName",
+      severity: "medium",
+      message: "Official MCP Registry publishing verifies npm ownership with the mcpName field in package.json.",
+      remediation: "Add package.json mcpName that matches the server.json name, such as io.github.owner/server-name.",
+      file: "package.json"
+    });
+  }
+
+  const server = await readServerJson(root);
+  if (!server) {
+    findings.push({
+      id: "missing-mcp-server-json",
+      title: "MCP package has no server.json",
+      severity: "medium",
+      message: "MCP registries and directories increasingly rely on server.json for install and discovery metadata.",
+      remediation: "Add server.json with name, description, repository, version, package identifier, and transport metadata.",
+      file: "server.json"
+    });
+  } else {
+    if (pkg?.mcpName && server.name && server.name !== pkg.mcpName) {
+      findings.push({
+        id: "mcp-name-mismatch",
+        title: "MCP registry names do not match",
+        severity: "medium",
+        message: `package.json mcpName is ${pkg.mcpName}, but server.json name is ${server.name}.`,
+        remediation: "Use the same reverse-DNS server name in package.json mcpName and server.json name.",
+        file: "server.json"
+      });
+    }
+
+    const npmPackage = server.packages?.find((item) => item.registryType === "npm");
+    if (pkg?.name && (!npmPackage || npmPackage.identifier !== pkg.name)) {
+      findings.push({
+        id: "mcp-npm-package-missing",
+        title: "server.json does not point at the npm package",
+        severity: "medium",
+        message: "The MCP server metadata does not include an npm package entry matching package.json name.",
+        remediation: "Add a packages entry with registryType npm, identifier set to the package name, a fixed version, and stdio transport.",
+        file: "server.json"
+      });
+    }
+
+    if (npmPackage && (!npmPackage.version || /^(?:latest|[\^~*]|\d+\.x)/i.test(npmPackage.version))) {
+      findings.push({
+        id: "mcp-package-version-not-pinned",
+        title: "server.json npm package version is not pinned",
+        severity: "medium",
+        message: "MCP registry package versions should be fixed release versions, not latest or semver ranges.",
+        remediation: "Set packages[].version to the exact npm version being published.",
+        file: "server.json"
+      });
+    }
+  }
+
+  const readme = await readText(path.join(root, "README.md"));
+  if (readme && !/(mcpServers|claude\s+mcp\s+add|npx|uvx|docker)/i.test(readme)) {
+    findings.push({
+      id: "missing-mcp-install-config",
+      title: "README lacks MCP install config",
+      severity: "low",
+      message: "MCP users need a copyable client config or add command before they can try the server.",
+      remediation: "Document a copyable mcpServers JSON block or client-specific add command.",
+      file: "README.md"
+    });
+  }
+
+  const safetyText = [
+    readme,
+    await readText(path.join(root, "SECURITY.md"))
+  ].filter((text): text is string => Boolean(text)).join("\n");
+
+  const sourceFiles = (await listFiles(root, 4)).filter(isProductionRelevantFile).filter(isSourceOrConfigFile);
+  const hasToolAnnotations = await repoTextMatches(sourceFiles, /\b(readOnlyHint|destructiveHint|idempotentHint|openWorldHint)\b/);
+  const hasSafetyNotes = /\b(authorized|read-only|destructive|permissions|least privilege|security)\b/i.test(safetyText);
+  if (!hasToolAnnotations && !hasSafetyNotes) {
+    findings.push({
+      id: "unclear-mcp-tool-safety",
+      title: "MCP tool safety is not documented",
+      severity: "low",
+      message: "MCP users and directories need to understand whether tools read data, mutate state, or need special permissions.",
+      remediation: "Add tool annotations where supported and document read/write behavior, required permissions, and security boundaries.",
+      file: "README.md"
     });
   }
 }

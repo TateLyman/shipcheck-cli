@@ -112,6 +112,71 @@ test("flags Firebase projects without checked-in rules", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "missing-firebase-rules"), true);
 });
 
+test("flags MCP registry metadata gaps", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "demo-mcp",
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        "@modelcontextprotocol/sdk": "^1.29.0"
+      }
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo MCP\n\nThis MCP server has a real README with usage notes and verification commands, but it intentionally omits registry metadata and copyable client install configuration so the scanner can flag launch-readiness gaps before publication.",
+    ".gitignore": "node_modules/\n.env\ndist/\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-name"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-server-json"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-install-config"), true);
+});
+
+test("accepts matching MCP server metadata", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "demo-mcp",
+      mcpName: "io.github.demo/demo-mcp",
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        "@modelcontextprotocol/sdk": "^1.29.0"
+      },
+      license: "MIT"
+    }),
+    "server.json": JSON.stringify({
+      name: "io.github.demo/demo-mcp",
+      description: "Demo MCP server",
+      version: "1.0.0",
+      packages: [
+        {
+          registryType: "npm",
+          identifier: "demo-mcp",
+          version: "1.0.0",
+          transport: {
+            type: "stdio"
+          }
+        }
+      ]
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo MCP\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx.\n\n## Verification\n\nRun npm test before every release. This paragraph keeps the README above the minimum size used by the scanner.",
+    "SECURITY.md": "Only run this MCP server against repositories you are authorized to inspect. The tools are read-only.",
+    "LICENSE": "MIT",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    ".github/workflows/ci.yml": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  const mcpFindings = report.findings.filter((finding) => finding.id.startsWith("mcp-") || finding.id.includes("-mcp-"));
+  assert.deepEqual(mcpFindings, []);
+});
+
 test("formats Markdown reports for client handoff", async () => {
   const root = await fixture({
     "package.json": JSON.stringify({

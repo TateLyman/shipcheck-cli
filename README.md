@@ -11,6 +11,8 @@ Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repo
 
 It also checks the failure points that show up in AI-built apps made with Lovable, Bolt, Replit, Cursor, v0, Base44, Supabase, Firebase, Stripe, and AI API integrations: exposed private keys, public frontend env vars that look private, unsigned Stripe webhooks, missing Firebase rules, undocumented Supabase RLS, debug API routes, and missing AI usage guardrails.
 
+For MCP packages, Shipcheck also checks launch metadata that directories and clients increasingly expect: `mcpName`, `server.json`, pinned package versions, npm package mapping, copyable install config, and basic tool-safety notes.
+
 Tool page: https://tatelyman.github.io/tate-web-services/shipcheck.html
 
 Demo repo with GitHub code scanning alerts: https://github.com/TateLyman/shipcheck-demo-ai-app
@@ -121,6 +123,7 @@ Use Shipcheck from MCP clients and AI coding agents:
 - Supabase usage without visible RLS migrations, policy notes, or access-boundary proof
 - debug, seed, reset, mock, or test API routes that may ship to production
 - AI/API usage without obvious rate limits, quotas, throttling, or cost guardrails
+- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned registry package versions, missing install config, or unclear tool-safety notes
 
 Shipcheck is a defensive static scanner, not a penetration test. It looks for review gaps and risky patterns in repos you own or are authorized to inspect.
 
