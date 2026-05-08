@@ -1,10 +1,21 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { formatReport } from "../src/format.js";
 import { scanRepository } from "../src/index.js";
+
+test("prints the package version", async () => {
+  const packageJson = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string };
+  const cliPath = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const stdout = execFileSync(process.execPath, [cliPath, "--version"], { encoding: "utf8" });
+
+  assert.equal(stdout.trim(), packageJson.version);
+});
 
 test("passes a release-ready TypeScript package", async () => {
   const root = await fixture({

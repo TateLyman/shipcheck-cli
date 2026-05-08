@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { formatReport, type ReportFormat } from "./format.js";
 import { scanRepository, shouldFail, type Severity } from "./index.js";
 
@@ -23,7 +24,7 @@ async function main(): Promise<void> {
   }
 
   if (args.version) {
-    console.log("0.4.1");
+    console.log(readPackageVersion());
     return;
   }
 
@@ -102,6 +103,13 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   return parsed;
+}
+
+function readPackageVersion(): string {
+  const packageJsonUrl = new URL("../../package.json", import.meta.url);
+  const packageJson = JSON.parse(readFileSync(packageJsonUrl, "utf8")) as { version?: unknown };
+
+  return typeof packageJson.version === "string" ? packageJson.version : "unknown";
 }
 
 function helpText(): string {
