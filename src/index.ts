@@ -479,8 +479,7 @@ async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, fi
   const isLikelyMcpServer = Boolean(pkg && (
     pkg.mcpName
     || hasAnyDependency(pkg, ["@modelcontextprotocol/sdk", "@modelcontextprotocol/server"])
-    || pkg.keywords?.some((keyword) => /\bmcp\b|model-context-protocol/i.test(keyword))
-    || /\bmcp\b/i.test(pkg.name ?? "")
+    || /(?:^|[-_])mcp(?:$|[-_])/i.test(pkg.name ?? "")
   )) || hasServerJson;
 
   if (!isLikelyMcpServer) {
