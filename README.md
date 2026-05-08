@@ -15,6 +15,10 @@ For MCP packages, Shipcheck also checks launch metadata that directories and cli
 
 Tool page: https://tatelyman.github.io/tate-web-services/shipcheck.html
 
+Free MCP launch self-check: https://tatelyman.github.io/tate-web-services/mcp-self-check.html
+
+Paid MCP launch check: https://tatelyman.github.io/tate-web-services/mcp-launch-review.html
+
 Demo repo with GitHub code scanning alerts: https://github.com/TateLyman/shipcheck-demo-ai-app
 
 ## Install
