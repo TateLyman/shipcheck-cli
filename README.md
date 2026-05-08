@@ -51,6 +51,8 @@ shipcheck . --strict --fail-on medium
 
 ## GitHub Action
 
+Marketplace listing: https://github.com/marketplace/actions/shipcheck-ai-app-scanner
+
 Action repo: https://github.com/TateLyman/shipcheck-action
 
 Add Shipcheck as a release gate in any JS/TS repo:
