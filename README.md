@@ -63,6 +63,8 @@ Marketplace listing: https://github.com/marketplace/actions/shipcheck-ai-app-sca
 
 Action repo: https://github.com/TateLyman/shipcheck-action
 
+MCP server: https://www.npmjs.com/package/shipcheck-mcp
+
 Add Shipcheck as a release gate in any JS/TS repo:
 
 ```yaml
@@ -86,6 +88,21 @@ jobs:
 ```
 
 The action runs the npm package with `npx`, so target repos do not need to add Shipcheck as a dependency.
+
+## MCP Server
+
+Use Shipcheck from MCP clients and AI coding agents:
+
+```json
+{
+  "mcpServers": {
+    "shipcheck": {
+      "command": "npx",
+      "args": ["--yes", "--package", "shipcheck-mcp", "shipcheck-mcp"]
+    }
+  }
+}
+```
 
 ## What It Checks
 
