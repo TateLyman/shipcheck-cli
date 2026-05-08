@@ -147,11 +147,15 @@ jobs:
           output: shipcheck.sarif
           fail-on: medium
           strict: true
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: shipcheck.sarif
 ```
+
+Demo repo with uploaded code scanning alerts:
+
+https://github.com/TateLyman/shipcheck-demo-ai-app
 
 ## Manual Review
 
