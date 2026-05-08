@@ -1,5 +1,10 @@
 # shipcheck-cli
 
+[![npm version](https://img.shields.io/npm/v/shipcheck-cli.svg)](https://www.npmjs.com/package/shipcheck-cli)
+[![ci](https://github.com/TateLyman/shipcheck-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/TateLyman/shipcheck-cli/actions/workflows/ci.yml)
+[![shipcheck](https://github.com/TateLyman/shipcheck-cli/actions/workflows/shipcheck.yml/badge.svg)](https://github.com/TateLyman/shipcheck-cli/actions/workflows/shipcheck.yml)
+[![GitHub Marketplace](https://img.shields.io/badge/marketplace-Shipcheck%20Action-2ea44f)](https://github.com/marketplace/actions/shipcheck-ai-app-scanner)
+
 Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repositories.
 
 `shipcheck` inspects a repo before you publish, hand it to a client, or ask someone to review it. It catches the boring issues that make projects feel unfinished: missing CI, missing lockfiles, thin documentation, loose dependency versions, unsafe package scripts, and local environment-file hygiene problems.
@@ -7,6 +12,8 @@ Release-readiness and AI-app exposure scanner for JavaScript and TypeScript repo
 It also checks the failure points that show up in AI-built apps made with Lovable, Bolt, Replit, Cursor, v0, Base44, Supabase, Firebase, Stripe, and AI API integrations: exposed private keys, public frontend env vars that look private, unsigned Stripe webhooks, missing Firebase rules, undocumented Supabase RLS, debug API routes, and missing AI usage guardrails.
 
 Tool page: https://tatelyman.github.io/tate-web-services/shipcheck.html
+
+Demo repo with GitHub code scanning alerts: https://github.com/TateLyman/shipcheck-demo-ai-app
 
 ## Install
 
