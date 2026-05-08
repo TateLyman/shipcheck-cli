@@ -1,0 +1,30 @@
+name: False positive
+description: Report a Shipcheck finding that looks incorrect.
+title: "[False positive]: "
+labels:
+  - false-positive
+body:
+  - type: markdown
+    attributes:
+      value: Share only redacted examples or public code. Do not include private credentials.
+  - type: input
+    id: finding
+    attributes:
+      label: Finding ID
+      placeholder: unsigned-stripe-webhook
+    validations:
+      required: true
+  - type: textarea
+    id: why-safe
+    attributes:
+      label: Why this looks safe
+      description: Explain the control Shipcheck missed.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Redacted example
+      render: typescript
+    validations:
+      required: false

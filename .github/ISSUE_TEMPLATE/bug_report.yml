@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a problem with shipcheck-cli.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a Shipcheck bug. Do not include private keys, customer data, or repo secrets.
+  - type: input
+    id: version
+    attributes:
+      label: Shipcheck version
+      description: Run `shipcheck --version`.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: Paste the command you ran.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Minimal safe fixture
+      description: Share a minimal reproduction, redacted output, or public repo link. Do not upload secrets.
+    validations:
+      required: false
