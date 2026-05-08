@@ -1,5 +1,7 @@
 import type { Finding, ScanReport, Severity } from "./index.js";
 
+export type ReportFormat = "text" | "markdown" | "json" | "sarif";
+
 const severityLabel: Record<Severity, string> = {
   high: "High",
   medium: "Medium",
@@ -7,9 +9,20 @@ const severityLabel: Record<Severity, string> = {
   info: "Info"
 };
 
-export function formatReport(report: ScanReport, format: "text" | "markdown" | "json"): string {
+const sarifLevel: Record<Severity, "error" | "warning" | "note"> = {
+  high: "error",
+  medium: "warning",
+  low: "warning",
+  info: "note"
+};
+
+export function formatReport(report: ScanReport, format: ReportFormat): string {
   if (format === "json") {
     return JSON.stringify(report, null, 2);
+  }
+
+  if (format === "sarif") {
+    return formatSarif(report);
   }
 
   if (format === "markdown") {
@@ -72,6 +85,78 @@ function formatMarkdown(report: ScanReport): string {
   }
 
   return lines.join("\n").trimEnd();
+}
+
+function formatSarif(report: ScanReport): string {
+  const rules = new Map<string, {
+    id: string;
+    name: string;
+    shortDescription: { text: string };
+    fullDescription: { text: string };
+    help: { text: string };
+    properties: { shipcheckSeverity: Severity };
+  }>();
+
+  for (const finding of report.findings) {
+    if (!rules.has(finding.id)) {
+      rules.set(finding.id, {
+        id: finding.id,
+        name: finding.title,
+        shortDescription: {
+          text: finding.title
+        },
+        fullDescription: {
+          text: finding.message
+        },
+        help: {
+          text: finding.remediation
+        },
+        properties: {
+          shipcheckSeverity: finding.severity
+        }
+      });
+    }
+  }
+
+  const sarif = {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "Shipcheck",
+            informationUri: "https://tatelyman.github.io/tate-web-services/shipcheck.html",
+            rules: [...rules.values()]
+          }
+        },
+        results: report.findings.map((finding) => ({
+          ruleId: finding.id,
+          level: sarifLevel[finding.severity],
+          message: {
+            text: `${finding.message} Fix: ${finding.remediation}`
+          },
+          locations: [
+            {
+              physicalLocation: {
+                artifactLocation: {
+                  uri: finding.file ?? "."
+                },
+                region: {
+                  startLine: 1
+                }
+              }
+            }
+          ],
+          properties: {
+            shipcheckSeverity: finding.severity
+          }
+        }))
+      }
+    ]
+  };
+
+  return JSON.stringify(sarif, null, 2);
 }
 
 function renderTextFinding(finding: Finding): string {

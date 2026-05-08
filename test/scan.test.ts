@@ -130,6 +130,40 @@ test("formats Markdown reports for client handoff", async () => {
   assert.match(markdown, /README\.md/);
 });
 
+test("formats SARIF reports for GitHub code scanning upload", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      }
+    }),
+    "package-lock.json": "{}"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  const sarif = JSON.parse(formatReport(report, "sarif")) as {
+    version: string;
+    runs: Array<{
+      tool: { driver: { name: string; rules: Array<{ id: string }> } };
+      results: Array<{
+        ruleId: string;
+        level: string;
+        locations: Array<{ physicalLocation: { artifactLocation: { uri: string } } }>;
+      }>;
+    }>;
+  };
+
+  assert.equal(sarif.version, "2.1.0");
+  assert.equal(sarif.runs[0]?.tool.driver.name, "Shipcheck");
+  assert.equal(sarif.runs[0]?.results.some((result) => result.ruleId === "missing-readme"), true);
+  assert.equal(sarif.runs[0]?.results.some((result) => result.level === "warning"), true);
+  assert.equal(
+    sarif.runs[0]?.results.some((result) => result.locations[0]?.physicalLocation.artifactLocation.uri === "README.md"),
+    true
+  );
+});
+
 async function fixture(files: Record<string, string>): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), "shipcheck-"));
 

@@ -12,9 +12,13 @@ inputs:
     required: false
     default: "."
   format:
-    description: Output format. Use text, markdown, or json.
+    description: Output format. Use text, markdown, json, or sarif.
     required: false
     default: "text"
+  output:
+    description: Optional file path to write the report, such as shipcheck.sarif.
+    required: false
+    default: ""
   fail-on:
     description: Lowest severity that should fail the workflow. Use info, low, medium, or high.
     required: false
@@ -36,6 +40,7 @@ runs:
       env:
         SHIPCHECK_PATH: ${{ inputs.path }}
         SHIPCHECK_FORMAT: ${{ inputs.format }}
+        SHIPCHECK_OUTPUT: ${{ inputs.output }}
         SHIPCHECK_FAIL_ON: ${{ inputs.fail-on }}
         SHIPCHECK_STRICT: ${{ inputs.strict }}
         SHIPCHECK_VERSION: ${{ inputs.version }}
@@ -44,6 +49,14 @@ runs:
 
         if [[ "$SHIPCHECK_STRICT" == "true" ]]; then
           args+=("--strict")
+        fi
+
+        if [[ -n "$SHIPCHECK_OUTPUT" ]]; then
+          mkdir -p "$(dirname "$SHIPCHECK_OUTPUT")"
+          set +e
+          npx --yes "shipcheck-cli@$SHIPCHECK_VERSION" "${args[@]}" | tee "$SHIPCHECK_OUTPUT"
+          status=${PIPESTATUS[0]}
+          exit "$status"
         fi
 
         npx --yes "shipcheck-cli@$SHIPCHECK_VERSION" "${args[@]}"

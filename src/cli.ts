@@ -1,19 +1,17 @@
 #!/usr/bin/env node
-import { formatReport } from "./format.js";
+import { formatReport, type ReportFormat } from "./format.js";
 import { scanRepository, shouldFail, type Severity } from "./index.js";
-
-type CliFormat = "text" | "markdown" | "json";
 
 type ParsedArgs = {
   root: string;
-  format: CliFormat;
+  format: ReportFormat;
   strict: boolean;
   failOn: Severity;
   help: boolean;
   version: boolean;
 };
 
-const validFormats = new Set<CliFormat>(["text", "markdown", "json"]);
+const validFormats = new Set<ReportFormat>(["text", "markdown", "json", "sarif"]);
 const validSeverities = new Set<Severity>(["info", "low", "medium", "high"]);
 
 async function main(): Promise<void> {
@@ -25,7 +23,7 @@ async function main(): Promise<void> {
   }
 
   if (args.version) {
-    console.log("0.2.1");
+    console.log("0.3.0");
     return;
   }
 
@@ -76,11 +74,11 @@ function parseArgs(argv: string[]): ParsedArgs {
 
     if (arg === "--format") {
       const value = argv[index + 1];
-      if (!value || !validFormats.has(value as CliFormat)) {
-        throw new Error("--format must be one of: text, markdown, json");
+      if (!value || !validFormats.has(value as ReportFormat)) {
+        throw new Error("--format must be one of: text, markdown, json, sarif");
       }
 
-      parsed.format = value as CliFormat;
+      parsed.format = value as ReportFormat;
       index += 1;
       continue;
     }
@@ -111,7 +109,7 @@ function helpText(): string {
     "shipcheck - release-readiness and AI-app exposure scanner for JavaScript and TypeScript repos",
     "",
     "Usage:",
-    "  shipcheck [path] [--format text|markdown|json] [--fail-on info|low|medium|high] [--strict]",
+    "  shipcheck [path] [--format text|markdown|json|sarif] [--fail-on info|low|medium|high] [--strict]",
     "",
     "Examples:",
     "  shipcheck",

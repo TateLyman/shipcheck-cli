@@ -38,7 +38,7 @@ shipcheck ../my-app --format markdown
 ## Usage
 
 ```bash
-shipcheck [path] [--format text|markdown|json] [--fail-on info|low|medium|high] [--strict]
+shipcheck [path] [--format text|markdown|json|sarif] [--fail-on info|low|medium|high] [--strict]
 ```
 
 Examples:
@@ -47,6 +47,7 @@ Examples:
 shipcheck
 shipcheck ../client-app --format markdown
 shipcheck . --strict --fail-on medium
+shipcheck . --format sarif > shipcheck.sarif
 ```
 
 ## GitHub Action
@@ -120,6 +121,36 @@ JSON output is designed for automation:
 
 ```bash
 shipcheck . --format json
+```
+
+SARIF output is designed for GitHub code scanning upload:
+
+```bash
+shipcheck . --format sarif > shipcheck.sarif
+```
+
+Use it with the Marketplace action and GitHub's SARIF uploader:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  shipcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: TateLyman/shipcheck-action@v1
+        with:
+          format: sarif
+          output: shipcheck.sarif
+          fail-on: medium
+          strict: true
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: shipcheck.sarif
 ```
 
 ## Manual Review
