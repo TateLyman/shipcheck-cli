@@ -72,7 +72,7 @@ test("flags dangerous scripts and loose dependencies", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "loose-dependency-version"), true);
 });
 
-test("flags AI-app exposure risks", async () => {
+test("flags app exposure risks", async () => {
   const stripeSecret = "sk_live_" + "1234567890abcdef";
   const root = await fixture({
     "package.json": JSON.stringify({
@@ -99,7 +99,7 @@ test("flags AI-app exposure risks", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "unsigned-stripe-webhook"), true);
   assert.equal(report.findings.some((finding) => finding.id === "undocumented-supabase-rls"), true);
   assert.equal(report.findings.some((finding) => finding.id === "debug-api-route"), true);
-  assert.equal(report.findings.some((finding) => finding.id === "missing-ai-usage-guardrail"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "missing-paid-api-usage-guardrail"), true);
 });
 
 test("flags Firebase projects without checked-in rules", async () => {

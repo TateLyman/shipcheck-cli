@@ -90,7 +90,7 @@ export async function scanRepository(options: ScanOptions): Promise<ScanReport> 
   await checkCi(root, findings);
   await checkTypeScript(root, findings);
   await checkEnvHygiene(root, findings);
-  await checkAiAppExposure(root, pkg, findings);
+  await checkAppExposure(root, pkg, findings);
   await checkMcpReleaseMetadata(root, pkg, findings);
 
   if (pkg) {
@@ -291,7 +291,7 @@ async function checkEnvHygiene(root: string, findings: Finding[]): Promise<void>
   }
 }
 
-async function checkAiAppExposure(root: string, pkg: PackageJson | null, findings: Finding[]): Promise<void> {
+async function checkAppExposure(root: string, pkg: PackageJson | null, findings: Finding[]): Promise<void> {
   const files = (await listFiles(root, 5)).filter(isProductionRelevantFile);
 
   await checkHardcodedSecrets(root, files, findings);
@@ -299,7 +299,7 @@ async function checkAiAppExposure(root: string, pkg: PackageJson | null, finding
   await checkFirebaseRules(root, pkg, files, findings);
   await checkSupabaseRls(root, pkg, files, findings);
   await checkDebugRoutes(root, files, findings);
-  await checkAiUsageGuardrails(root, pkg, files, findings);
+  await checkPaidApiUsageGuardrails(root, pkg, files, findings);
 }
 
 async function checkHardcodedSecrets(root: string, files: string[], findings: Finding[]): Promise<void> {
@@ -307,7 +307,7 @@ async function checkHardcodedSecrets(root: string, files: string[], findings: Fi
     { pattern: /\bsk_live_[A-Za-z0-9]{12,}\b/, label: "Stripe live secret key" },
     { pattern: /\bsk_test_[A-Za-z0-9]{12,}\b/, label: "Stripe test secret key" },
     { pattern: /\brk_live_[A-Za-z0-9]{12,}\b/, label: "Stripe restricted key" },
-    { pattern: /\b(?:OPENAI|ANTHROPIC|GROQ|XAI|GEMINI|GOOGLE)_API_KEY\s*[:=]\s*["'][^"'\s]{20,}["']/i, label: "AI provider API key" },
+    { pattern: /\b(?:OPENAI|ANTHROPIC|GROQ|XAI|GEMINI|GOOGLE)_API_KEY\s*[:=]\s*["'][^"'\s]{20,}["']/i, label: "paid provider API key" },
     { pattern: /\bSUPABASE_SERVICE_ROLE(?:_KEY)?\s*[:=]\s*["'][^"'\s]{20,}["']/i, label: "Supabase service-role key" }
   ];
 
@@ -446,14 +446,14 @@ async function checkDebugRoutes(root: string, files: string[], findings: Finding
       id: "debug-api-route",
       title: "Debug or seed API route may ship to production",
       severity: "medium",
-      message: "Debug, test, seed, reset, and mock API routes are common AI-app leftovers that can expose data or mutate production state.",
+      message: "Debug, test, seed, reset, and mock API routes are common launch leftovers that can expose data or mutate production state.",
       remediation: "Remove the route, gate it behind server-side admin checks, or make it impossible to deploy in production.",
       file: relativeTo(root, riskyRoute)
     });
   }
 }
 
-async function checkAiUsageGuardrails(root: string, pkg: PackageJson | null, files: string[], findings: Finding[]): Promise<void> {
+async function checkPaidApiUsageGuardrails(root: string, pkg: PackageJson | null, files: string[], findings: Finding[]): Promise<void> {
   const usesAiProvider = hasAnyDependency(pkg, ["openai", "@anthropic-ai/sdk", "ai", "@google/generative-ai"])
     || await repoTextMatches(files, /\b(?:from\s+["']openai["']|require\(["']openai["']\)|new\s+OpenAI\(|generateText\(|streamText\(|chat\.completions)\b/i);
 
@@ -464,11 +464,11 @@ async function checkAiUsageGuardrails(root: string, pkg: PackageJson | null, fil
   const hasCostGuardrail = await repoTextMatches(files, /\b(rateLimit|rate-limit|quota|usageLimit|usage_limit|throttle|limiter|upstash\/ratelimit)\b/i);
   if (!hasCostGuardrail) {
     findings.push({
-      id: "missing-ai-usage-guardrail",
-      title: "AI/API usage has no obvious quota or rate limit",
+      id: "missing-paid-api-usage-guardrail",
+      title: "Paid API usage has no obvious quota or rate limit",
       severity: "low",
-      message: "Apps that call paid AI APIs need usage guardrails so one user or bot cannot run up costs.",
-      remediation: "Add per-user quotas, route-level rate limits, abuse logging, or a billing-aware usage cap around expensive AI actions.",
+      message: "Apps that call paid external APIs need usage guardrails so one user or bot cannot run up costs.",
+      remediation: "Add per-user quotas, route-level rate limits, abuse logging, or a billing-aware usage cap around expensive actions.",
       file: "package.json"
     });
   }

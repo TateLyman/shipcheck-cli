@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Paid manual app review
-    url: https://tatelyman.github.io/tate-web-services/shipcheck.html
+    url: https://tateprograms.com/shipcheck.html
     about: Request a scoped review for an app or repo you own.
   - name: Scope and payment details
-    url: https://tatelyman.github.io/tate-web-services/payments.html
+    url: https://tateprograms.com/payments.html
     about: Use only after scope is confirmed by email.

@@ -126,7 +126,7 @@ function formatSarif(report: ScanReport): string {
         tool: {
           driver: {
             name: "Shipcheck",
-            informationUri: "https://tatelyman.github.io/tate-web-services/shipcheck.html",
+            informationUri: "https://tateprograms.com/shipcheck.html",
             rules: [...rules.values()]
           }
         },

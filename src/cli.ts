@@ -114,7 +114,7 @@ function readPackageVersion(): string {
 
 function helpText(): string {
   return [
-    "shipcheck - release-readiness and AI-app exposure scanner for JavaScript and TypeScript repos",
+    "shipcheck - release-readiness and app exposure scanner for JavaScript and TypeScript repos",
     "",
     "Usage:",
     "  shipcheck [path] [--format text|markdown|json|sarif] [--fail-on info|low|medium|high] [--strict]",
