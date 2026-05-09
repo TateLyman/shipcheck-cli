@@ -227,6 +227,47 @@ test("flags remote MCP servers without auth boundary docs", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "mcp-remote-auth-undocumented"), true);
 });
 
+test("flags MCP server metadata version mismatches", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "demo-mcp",
+      version: "1.0.1",
+      mcpName: "io.github.demo/demo-mcp",
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        "@modelcontextprotocol/sdk": "^1.29.0"
+      }
+    }),
+    "server.json": JSON.stringify({
+      name: "io.github.demo/demo-mcp",
+      description: "Demo MCP server",
+      version: "1.0.0",
+      packages: [
+        {
+          registryType: "npm",
+          identifier: "demo-mcp",
+          version: "1.0.0",
+          transport: {
+            type: "stdio"
+          }
+        }
+      ]
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo MCP\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx.\n\n## Verification\n\nRun npm test before every release. This paragraph keeps the README above the minimum size used by the scanner.",
+    "SECURITY.md": "Only run this MCP server against repositories you are authorized to inspect. The tools are read-only.",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    ".github/workflows/ci.yml": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "mcp-server-version-mismatch"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "mcp-package-version-mismatch"), true);
+});
+
 test("accepts matching MCP server metadata", async () => {
   const root = await fixture({
     "package.json": JSON.stringify({

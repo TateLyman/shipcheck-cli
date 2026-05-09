@@ -125,7 +125,7 @@ Use Shipcheck from MCP clients:
 - Supabase usage without visible RLS migrations, policy notes, or access-boundary proof
 - debug, seed, reset, mock, or test API routes that may ship to production
 - external API usage without obvious rate limits, quotas, throttling, or cost guardrails
-- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned registry package versions, missing install config, missing smoke-test proof, undocumented remote auth boundaries, or unclear tool-safety notes
+- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned or mismatched registry package versions, missing install config, missing smoke-test proof, undocumented remote auth boundaries, or unclear tool-safety notes
 
 Shipcheck is a defensive static scanner, not a penetration test. It looks for review gaps and risky patterns in repos you own or are authorized to inspect.
 

@@ -29,6 +29,7 @@ export type ScanReport = {
 
 type PackageJson = {
   name?: string;
+  version?: string;
   private?: boolean;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
@@ -43,6 +44,7 @@ type PackageJson = {
 
 type ServerJson = {
   name?: string;
+  version?: string;
   packages?: Array<{
     registryType?: string;
     identifier?: string;
@@ -526,6 +528,17 @@ async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, fi
     }
 
     const npmPackage = server.packages?.find((item) => item.registryType === "npm");
+    if (pkg?.version && server.version && server.version !== pkg.version) {
+      findings.push({
+        id: "mcp-server-version-mismatch",
+        title: "server.json version does not match package.json",
+        severity: "medium",
+        message: `package.json version is ${pkg.version}, but server.json version is ${server.version}.`,
+        remediation: "Set server.json version to the exact package version before publishing MCP Registry metadata.",
+        file: "server.json"
+      });
+    }
+
     if (pkg?.name && (!npmPackage || npmPackage.identifier !== pkg.name)) {
       findings.push({
         id: "mcp-npm-package-missing",
@@ -544,6 +557,17 @@ async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, fi
         severity: "medium",
         message: "MCP registry package versions should be fixed release versions, not latest or semver ranges.",
         remediation: "Set packages[].version to the exact npm version being published.",
+        file: "server.json"
+      });
+    }
+
+    if (pkg?.version && npmPackage?.version && npmPackage.version !== pkg.version) {
+      findings.push({
+        id: "mcp-package-version-mismatch",
+        title: "server.json package version does not match package.json",
+        severity: "medium",
+        message: `package.json version is ${pkg.version}, but server.json packages[].version is ${npmPackage.version}.`,
+        remediation: "Set the npm package entry in server.json to the exact package version before publishing MCP Registry metadata.",
         file: "server.json"
       });
     }
