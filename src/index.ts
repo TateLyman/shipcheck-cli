@@ -29,6 +29,7 @@ export type ScanReport = {
 
 type PackageJson = {
   name?: string;
+  private?: boolean;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -101,6 +102,7 @@ export async function scanRepository(options: ScanOptions): Promise<ScanReport> 
     checkScripts(pkg, findings, strict);
     checkDependencies(pkg, findings);
     await checkPackageManager(root, pkg, findings);
+    await checkNpmPublishWorkflow(root, pkg, findings);
   }
 
   const totals = countTotals(findings);
@@ -720,6 +722,51 @@ async function checkPackageManager(root: string, pkg: PackageJson, findings: Fin
         message: `package.json declares ${pkg.packageManager}, but found ${present.map((item) => item.lockfile).join(", ")}.`,
         remediation: "Update packageManager or regenerate the lockfile with the declared tool.",
         file: "package.json"
+      });
+    }
+  }
+}
+
+async function checkNpmPublishWorkflow(root: string, pkg: PackageJson, findings: Finding[]): Promise<void> {
+  if (pkg.private === true) {
+    return;
+  }
+
+  const workflowsRoot = path.join(root, ".github", "workflows");
+  const workflowFiles = (await listFiles(workflowsRoot, 1))
+    .filter((file) => [".yml", ".yaml"].includes(path.extname(file).toLowerCase()));
+
+  const publishPattern = /\b(?:npm\s+publish|pnpm\s+publish|yarn\s+npm\s+publish)\b|JS-DevTools\/npm-publish/i;
+  const tokenPattern = /\b(?:NPM_TOKEN|NODE_AUTH_TOKEN|NPM_CONFIG__AUTH|_authToken)\b|secrets\.[A-Z0-9_]*NPM[A-Z0-9_]*/i;
+  const idTokenPattern = /id-token\s*:\s*write/i;
+
+  for (const workflowFile of workflowFiles) {
+    const workflow = await readText(workflowFile);
+    if (!workflow || !publishPattern.test(workflow)) {
+      continue;
+    }
+
+    const relativeWorkflowFile = relativeTo(root, workflowFile);
+    if (tokenPattern.test(workflow)) {
+      findings.push({
+        id: "npm-publish-uses-long-lived-token",
+        title: "npm publish workflow uses a long-lived token",
+        severity: "medium",
+        message: "The workflow appears to publish to npm with NPM_TOKEN, NODE_AUTH_TOKEN, or an npm auth token instead of OIDC trusted publishing.",
+        remediation: "Configure npm Trusted Publisher for this workflow, grant id-token: write, and remove publish-scope npm tokens from the publish job.",
+        file: relativeWorkflowFile
+      });
+      continue;
+    }
+
+    if (!idTokenPattern.test(workflow)) {
+      findings.push({
+        id: "npm-publish-missing-oidc-permission",
+        title: "npm publish workflow is missing OIDC permission",
+        severity: "low",
+        message: "The workflow runs npm publish but does not visibly grant id-token: write for trusted publishing.",
+        remediation: "Add permissions.id-token: write to the publish workflow or publish job after configuring npm Trusted Publisher.",
+        file: relativeWorkflowFile
       });
     }
   }

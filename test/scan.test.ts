@@ -72,6 +72,53 @@ test("flags dangerous scripts and loose dependencies", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "loose-dependency-version"), true);
 });
 
+test("flags npm publish workflows that use long-lived tokens", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "token-publisher",
+      scripts: {
+        build: "tsc -p tsconfig.json",
+        test: "node --test"
+      },
+      license: "MIT"
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nRun the CLI, inspect the report, and fix any warnings before release. This paragraph keeps the README above the minimum size used by the scanner.\n\n## Verification\n\nRun npm test before every release.",
+    "LICENSE": "MIT",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    "tsconfig.json": "{}",
+    "src/index.ts": "export const value: number = 1;\n",
+    ".github/workflows/publish-npm.yml": "name: publish-npm\non: workflow_dispatch\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v6\n      - uses: actions/setup-node@v6\n        with:\n          registry-url: https://registry.npmjs.org\n      - run: npm ci\n      - run: npm publish\n        env:\n          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "npm-publish-uses-long-lived-token"), true);
+});
+
+test("accepts npm trusted publishing workflows", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "trusted-publisher",
+      scripts: {
+        build: "tsc -p tsconfig.json",
+        test: "node --test"
+      },
+      license: "MIT"
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Demo\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nRun the CLI, inspect the report, and fix any warnings before release. This paragraph keeps the README above the minimum size used by the scanner.\n\n## Verification\n\nRun npm test before every release.",
+    "LICENSE": "MIT",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    "tsconfig.json": "{}",
+    "src/index.ts": "export const value: number = 1;\n",
+    ".github/workflows/publish-npm.yml": "name: publish-npm\non: workflow_dispatch\npermissions:\n  contents: read\n  id-token: write\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v6\n      - uses: actions/setup-node@v6\n        with:\n          node-version: 24\n          registry-url: https://registry.npmjs.org\n      - run: npm ci\n      - run: npm publish\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  const npmPublishFindings = report.findings.filter((finding) => finding.id.startsWith("npm-publish-"));
+  assert.deepEqual(npmPublishFindings, []);
+});
+
 test("flags app exposure risks", async () => {
   const stripeSecret = "sk_live_" + "1234567890abcdef";
   const root = await fixture({

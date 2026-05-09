@@ -113,6 +113,7 @@ Use Shipcheck from MCP clients:
 - dangerous package scripts such as broad `rm -rf`, `sudo`, `curl | bash`, and force pushes
 - loose dependency versions such as `latest`, `*`, direct URLs, and Git dependencies
 - dependency lockfile presence and package-manager consistency
+- npm publish workflows that still depend on long-lived registry tokens instead of trusted publishing/OIDC
 - README depth, license declaration, and `.gitignore` hygiene
 - GitHub Actions workflow presence
 - TypeScript files without `tsconfig.json`
