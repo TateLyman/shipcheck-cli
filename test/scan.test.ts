@@ -136,7 +136,7 @@ test("flags MCP registry metadata gaps", async () => {
       }
     }),
     "package-lock.json": "{}",
-    "README.md": "# Demo MCP\n\nThis MCP server has a real README with usage notes and verification commands, but it intentionally omits registry metadata and copyable client install configuration so the scanner can flag launch-readiness gaps before publication.",
+    "README.md": "# Demo MCP\n\nThis MCP server has a real README with usage notes and release context, but it intentionally omits registry metadata, copyable client install configuration, and first-run proof so the scanner can flag launch-readiness gaps before publication.",
     ".gitignore": "node_modules/\n.env\ndist/\n"
   });
 
@@ -144,6 +144,40 @@ test("flags MCP registry metadata gaps", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-name"), true);
   assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-server-json"), true);
   assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-install-config"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "missing-mcp-smoke-test-docs"), true);
+});
+
+test("flags remote MCP servers without auth boundary docs", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "remote-demo-mcp",
+      mcpName: "io.github.demo/remote-demo-mcp",
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        "@modelcontextprotocol/sdk": "^1.29.0"
+      }
+    }),
+    "server.json": JSON.stringify({
+      name: "io.github.demo/remote-demo-mcp",
+      description: "Remote demo MCP server",
+      version: "1.0.0",
+      remotes: [
+        {
+          type: "streamable-http",
+          url: "https://example.com/mcp"
+        }
+      ]
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# Remote Demo MCP\n\nThis MCP server has a copyable mcpServers config and a verification command. Use MCP Inspector to run tools/list and confirm the expected tools are available before release.",
+    ".gitignore": "node_modules/\n.env\ndist/\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "mcp-remote-auth-undocumented"), true);
 });
 
 test("accepts matching MCP server metadata", async () => {

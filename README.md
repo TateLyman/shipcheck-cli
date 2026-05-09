@@ -10,7 +10,7 @@ Release-readiness and app exposure scanner for JavaScript and TypeScript reposit
 
 It also checks common failure points in modern full-stack apps built with tools such as Lovable, Bolt, Replit, Cursor, v0, Base44, Supabase, Firebase, and Stripe: exposed private keys, public frontend env vars that look private, unsigned Stripe webhooks, missing Firebase rules, undocumented Supabase RLS, debug API routes, and missing usage guardrails.
 
-For MCP packages, Shipcheck also checks launch metadata that directories and clients increasingly expect: `mcpName`, `server.json`, pinned package versions, npm package mapping, copyable install config, and basic tool-safety notes.
+For MCP packages, Shipcheck also checks launch metadata that directories and clients increasingly expect: `mcpName`, `server.json`, pinned package versions, npm package mapping, copyable install config, smoke-test proof, remote auth notes, and basic tool-safety documentation.
 
 Tool page: https://tateprograms.com/shipcheck.html
 
@@ -124,7 +124,7 @@ Use Shipcheck from MCP clients:
 - Supabase usage without visible RLS migrations, policy notes, or access-boundary proof
 - debug, seed, reset, mock, or test API routes that may ship to production
 - external API usage without obvious rate limits, quotas, throttling, or cost guardrails
-- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned registry package versions, missing install config, or unclear tool-safety notes
+- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned registry package versions, missing install config, missing smoke-test proof, undocumented remote auth boundaries, or unclear tool-safety notes
 
 Shipcheck is a defensive static scanner, not a penetration test. It looks for review gaps and risky patterns in repos you own or are authorized to inspect.
 

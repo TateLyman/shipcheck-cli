@@ -50,6 +50,10 @@ type ServerJson = {
       type?: string;
     };
   }>;
+  remotes?: Array<{
+    type?: string;
+    url?: string;
+  }>;
 };
 
 const severityRank: Record<Severity, number> = {
@@ -555,10 +559,34 @@ async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, fi
     });
   }
 
+  if (readme && !/(smoke|inspector|tools\/list|list tools|expected tools?|test command|verification|verify the server|try it locally)/i.test(readme)) {
+    findings.push({
+      id: "missing-mcp-smoke-test-docs",
+      title: "README lacks MCP smoke-test proof",
+      severity: "low",
+      message: "MCP users and directory reviewers need a quick way to confirm the server starts and exposes the expected tools.",
+      remediation: "Add a smoke-test command or short verification section using MCP Inspector, tools/list, or expected tool output.",
+      file: "README.md"
+    });
+  }
+
   const safetyText = [
     readme,
     await readText(path.join(root, "SECURITY.md"))
   ].filter((text): text is string => Boolean(text)).join("\n");
+
+  const hasRemoteServer = Boolean(server?.remotes?.length);
+  const hasRemoteAuthNotes = /\b(oauth|auth|authenticate|authorization|api key|token|bearer|login|sign in|permission|scope|secret)\b/i.test(safetyText);
+  if (hasRemoteServer && !hasRemoteAuthNotes) {
+    findings.push({
+      id: "mcp-remote-auth-undocumented",
+      title: "Remote MCP auth boundaries are not documented",
+      severity: "low",
+      message: "Remote MCP servers need clear notes about authentication, token handling, scopes, and user-data boundaries before users connect a client.",
+      remediation: "Document the remote auth flow, required tokens or OAuth scopes, data access boundaries, and how users can revoke access.",
+      file: "README.md"
+    });
+  }
 
   const sourceFiles = (await listFiles(root, 4)).filter(isProductionRelevantFile).filter(isSourceOrConfigFile);
   const hasToolAnnotations = await repoTextMatches(sourceFiles, /\b(readOnlyHint|destructiveHint|idempotentHint|openWorldHint)\b/);
