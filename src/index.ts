@@ -714,6 +714,22 @@ async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, fi
     await readText(path.join(root, "SECURITY.md"))
   ].filter((text): text is string => Boolean(text)).join("\n");
 
+  const hasStdioPackage = Boolean(server?.packages?.some((item) => item.transport?.type?.toLowerCase() === "stdio"));
+  const readmeShowsStdioClientConfig = Boolean(readme && /\b(?:stdio|mcpServers|claude\s+mcp\s+add|npx\s|uvx\s|docker\s|\"command\"|\"args\")\b/i.test(readme));
+  const hasStdioBoundaryNotes = /\b(?:stdio|mcpServers|client config|local process|subprocess|launch command|command|args|shell|execute|execution|spawn)\b/i.test(safetyText)
+    && /\b(?:trusted|review|pin|pinned|exact version|allowlist|allow-list|do not run untrusted|authorized|sandbox|least privilege|read-only|generated config)\b/i.test(safetyText);
+
+  if ((hasStdioPackage || readmeShowsStdioClientConfig) && !hasStdioBoundaryNotes) {
+    findings.push({
+      id: "mcp-stdio-boundary-undocumented",
+      title: "MCP STDIO execution boundary is not documented",
+      severity: "low",
+      message: "STDIO MCP install configs launch local commands, so a copied or generated config can become execution authority on the user's machine.",
+      remediation: "Document that users should review command/args/env, run only trusted configs, prefer pinned package versions or trusted repos, and understand what local access the server receives.",
+      file: readme ? "README.md" : "server.json"
+    });
+  }
+
   const hasRemoteServer = Boolean(server?.remotes?.length);
   const hasRemoteAuthNotes = /\b(oauth|auth|authenticate|authorization|api key|token|bearer|login|sign in|permission|scope|secret)\b/i.test(safetyText);
   if (hasRemoteServer && !hasRemoteAuthNotes) {

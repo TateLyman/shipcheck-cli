@@ -10,7 +10,7 @@ Release-readiness and app exposure scanner for JavaScript and TypeScript reposit
 
 It also checks common failure points in modern full-stack apps built with tools such as Lovable, Bolt, Replit, Cursor, v0, Base44, Supabase, Firebase, and Stripe: exposed private keys, public frontend env vars that look private, unsigned Stripe webhooks, missing Firebase rules, undocumented Supabase RLS, debug API routes, and missing usage guardrails.
 
-For MCP packages, Shipcheck also checks launch metadata that directories and clients increasingly expect: `mcpName`, `server.json`, pinned package versions, npm package mapping, copyable install config, smoke-test proof, remote auth notes, and basic tool-safety documentation.
+For MCP packages, Shipcheck also checks launch metadata that directories and clients increasingly expect: `mcpName`, `server.json`, pinned package versions, npm package mapping, copyable install config, smoke-test proof, STDIO execution-boundary notes, remote auth notes, and basic tool-safety documentation.
 
 For x402, API-payment, and payment-agent prototypes, Shipcheck checks the money-movement guardrails reviewers look for before they run a demo: sandbox mode, spend caps, approval checkpoints, recipient validation, replay protection, receipts, callback signature proof, and payment-metadata privacy notes.
 
@@ -130,7 +130,7 @@ Use Shipcheck from MCP clients:
 - debug, seed, reset, mock, or test API routes that may ship to production
 - external API usage without obvious rate limits, quotas, throttling, or cost guardrails
 - x402, API-payment, and payment-agent prototypes without sandbox/testnet mode, spend caps, user approval, recipient allowlists, replay protection, receipts, callback-signature verification, or payment-metadata privacy notes
-- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned or mismatched registry package versions, missing install config, missing smoke-test proof, undocumented remote auth boundaries, or unclear tool-safety notes
+- MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned or mismatched registry package versions, missing install config, missing smoke-test proof, undocumented STDIO execution boundaries, undocumented remote auth boundaries, or unclear tool-safety notes
 
 Shipcheck is a defensive static scanner, not a penetration test. It looks for review gaps and risky patterns in repos you own or are authorized to inspect.
 

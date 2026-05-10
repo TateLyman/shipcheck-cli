@@ -291,6 +291,47 @@ test("flags remote MCP servers without auth boundary docs", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "mcp-remote-auth-undocumented"), true);
 });
 
+test("flags MCP STDIO servers without execution-boundary docs", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      name: "stdio-demo-mcp",
+      version: "1.0.0",
+      mcpName: "io.github.demo/stdio-demo-mcp",
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        "@modelcontextprotocol/sdk": "^1.29.0"
+      },
+      license: "MIT"
+    }),
+    "server.json": JSON.stringify({
+      name: "io.github.demo/stdio-demo-mcp",
+      description: "STDIO demo MCP server",
+      version: "1.0.0",
+      packages: [
+        {
+          registryType: "npm",
+          identifier: "stdio-demo-mcp",
+          version: "1.0.0",
+          transport: {
+            type: "stdio"
+          }
+        }
+      ]
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# STDIO Demo MCP\n\nThis package has install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx.\n\n## Verification\n\nRun npm test and MCP Inspector tools/list before every release. This paragraph keeps the README above the minimum size used by the scanner.",
+    "LICENSE": "MIT",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    ".github/workflows/ci.yml": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.findings.some((finding) => finding.id === "mcp-stdio-boundary-undocumented"), true);
+});
+
 test("flags MCP server metadata version mismatches", async () => {
   const root = await fixture({
     "package.json": JSON.stringify({
@@ -321,7 +362,7 @@ test("flags MCP server metadata version mismatches", async () => {
       ]
     }),
     "package-lock.json": "{}",
-    "README.md": "# Demo MCP\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx.\n\n## Verification\n\nRun npm test before every release. This paragraph keeps the README above the minimum size used by the scanner.",
+    "README.md": "# Demo MCP\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx. STDIO client config launches a local command, so users should review command and args, use a pinned package version, and only run trusted configs.\n\n## Verification\n\nRun npm test before every release. This paragraph keeps the README above the minimum size used by the scanner.",
     "SECURITY.md": "Only run this MCP server against repositories you are authorized to inspect. The tools are read-only.",
     ".gitignore": "node_modules/\n.env\ndist/\n",
     ".github/workflows/ci.yml": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n"
@@ -362,8 +403,8 @@ test("accepts matching MCP server metadata", async () => {
       ]
     }),
     "package-lock.json": "{}",
-    "README.md": "# Demo MCP\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx.\n\n## Verification\n\nRun npm test before every release. This paragraph keeps the README above the minimum size used by the scanner.",
-    "SECURITY.md": "Only run this MCP server against repositories you are authorized to inspect. The tools are read-only.",
+    "README.md": "# Demo MCP\n\nThis package has a real README with install steps, usage examples, expected output, and verification commands for maintainers.\n\n## Usage\n\nAdd it to an MCP client with a copyable mcpServers JSON block and run it with npx. STDIO client config launches a local command, so users should review command and args, use a pinned package version, and only run trusted configs.\n\n## Verification\n\nRun npm test before every release. This paragraph keeps the README above the minimum size used by the scanner.",
+    "SECURITY.md": "Only run this MCP server against repositories you are authorized to inspect. The tools are read-only and should be run with least privilege.",
     "LICENSE": "MIT",
     ".gitignore": "node_modules/\n.env\ndist/\n",
     ".github/workflows/ci.yml": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n"
