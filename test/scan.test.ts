@@ -149,6 +149,70 @@ test("flags app exposure risks", async () => {
   assert.equal(report.findings.some((finding) => finding.id === "missing-paid-api-usage-guardrail"), true);
 });
 
+test("flags agent-commerce payment prototypes without money-movement guardrails", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        x402: "^0.1.0",
+        express: "^5.1.0"
+      }
+    }),
+    "package-lock.json": "{}",
+    "README.md": "# x402 Demo\n\nThis demo uses x402 to return HTTP 402 payment required responses for a paywalled API. It intentionally omits launch guardrails so Shipcheck can flag them.",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    "src/server.ts": "export function handler() { return new Response('payment required', { status: 402 }); }\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high" });
+  assert.equal(report.ok, false);
+  assert.equal(report.findings.some((finding) => finding.id === "agent-commerce-missing-spend-limits"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "agent-commerce-missing-sandbox-mode"), true);
+  assert.equal(report.findings.some((finding) => finding.id === "agent-commerce-missing-replay-protection"), true);
+});
+
+test("accepts agent-commerce prototypes with documented payment guardrails", async () => {
+  const root = await fixture({
+    "package.json": JSON.stringify({
+      scripts: {
+        test: "node --test",
+        build: "node build.js"
+      },
+      dependencies: {
+        x402: "^0.1.0",
+        express: "^5.1.0"
+      },
+      license: "MIT"
+    }),
+    "package-lock.json": "{}",
+    "README.md": [
+      "# x402 Research Buyer",
+      "",
+      "This paywalled API demo uses x402 for HTTP 402 payment required responses. It is a reviewable prototype with a sandbox mode and testnet facilitator for non-production runs.",
+      "",
+      "The default max spend is 1 USDC per transaction with a 5 USDC daily budget allowance. Any higher amount requires user approval and confirmation before the wallet is enabled.",
+      "",
+      "Recipient validation uses a merchant allowlist and destination validation for approved domains and wallet addresses.",
+      "",
+      "Payment requests include a nonce, idempotency key, expires timestamp, and request hash for replay protection.",
+      "",
+      "Every settlement produces a receipt, transaction id, payment log, and audit trail entry. Callback signature verification uses HMAC before access state changes. Payment metadata is minimized, PII is redacted, and reason strings are sanitized before signing."
+    ].join("\n"),
+    "LICENSE": "MIT",
+    ".gitignore": "node_modules/\n.env\ndist/\n",
+    ".env.example": "X402_MODE=sandbox\nMAX_SPEND_USDC=1\n",
+    "src/server.ts": "export function handler() { return new Response('payment required', { status: 402 }); }\n",
+    ".github/workflows/ci.yml": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: []\n"
+  });
+
+  const report = await scanRepository({ root, failOn: "high", strict: true });
+  const agentCommerceFindings = report.findings.filter((finding) => finding.id.startsWith("agent-commerce-"));
+  assert.deepEqual(agentCommerceFindings, []);
+});
+
 test("flags Firebase projects without checked-in rules", async () => {
   const root = await fixture({
     "package.json": JSON.stringify({

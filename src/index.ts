@@ -98,6 +98,7 @@ export async function scanRepository(options: ScanOptions): Promise<ScanReport> 
   await checkTypeScript(root, findings);
   await checkEnvHygiene(root, findings);
   await checkAppExposure(root, pkg, findings);
+  await checkAgentCommerceReadiness(root, pkg, findings);
   await checkMcpReleaseMetadata(root, pkg, findings);
 
   if (pkg) {
@@ -482,6 +483,118 @@ async function checkPaidApiUsageGuardrails(root: string, pkg: PackageJson | null
   }
 }
 
+async function checkAgentCommerceReadiness(root: string, pkg: PackageJson | null, findings: Finding[]): Promise<void> {
+  const files = (await listFiles(root, 5)).filter(isProductionRelevantFile).filter(isSourceOrConfigFile);
+  const usesAgentCommerce = hasAnyDependency(pkg, ["x402", "@coinbase/x402", "@coinbase/agentkit"])
+    || await repoTextMatches(files, /\b(?:x402|X-PAYMENT|payment required|HTTP\s*402|agentic commerce|agent payment|payment agent|autonomous payment|machine payment|paywalled API)\b/i);
+
+  if (!usesAgentCommerce) {
+    return;
+  }
+
+  const docsAndSource = await repositoryText(root, files, ["README.md", "SECURITY.md", ".env.example"]);
+
+  const checks: Array<{
+    id: string;
+    title: string;
+    severity: Severity;
+    missingWhen: RegExp;
+    message: string;
+    remediation: string;
+    file: string;
+  }> = [
+    {
+      id: "agent-commerce-missing-sandbox-mode",
+      title: "Agent-commerce prototype has no visible sandbox mode",
+      severity: "medium",
+      missingWhen: /\b(?:sandbox|testnet|dry[-_\s]?run|mock payment|test facilitator|zero[-_\s]?value|local facilitator|preview mode)\b/i,
+      message: "Payment-agent and x402 demos need a non-production path so reviewers can test behavior without moving real funds.",
+      remediation: "Document and implement a sandbox, testnet, dry-run, mock-payment, or zero-value facilitator mode before launch.",
+      file: ".env.example"
+    },
+    {
+      id: "agent-commerce-missing-spend-limits",
+      title: "Agent-commerce flow has no visible spend limit",
+      severity: "high",
+      missingWhen: /\b(?:spend cap|spending cap|max spend|max_spend|maxAmount|max amount|allowance|budget|daily limit|per[-_\s]?transaction limit)\b/i,
+      message: "A payment-capable agent should not be able to spend arbitrary amounts if a prompt, tool call, or route is misused.",
+      remediation: "Add per-transaction and total budget caps, make the default limit small, and document how limits are configured.",
+      file: "README.md"
+    },
+    {
+      id: "agent-commerce-missing-approval-step",
+      title: "Agent-commerce flow has no visible approval checkpoint",
+      severity: "medium",
+      missingWhen: /\b(?:approve|approval|confirm|confirmation|human[-_\s]?in[-_\s]?the[-_\s]?loop|manual review|requires user|user consent)\b/i,
+      message: "Payment-agent flows should show where the user reviews or approves spending authority before any real payment path is enabled.",
+      remediation: "Add a confirmation or approval checkpoint for payment setup and high-risk spend, and document what the user sees.",
+      file: "README.md"
+    },
+    {
+      id: "agent-commerce-missing-recipient-validation",
+      title: "Agent-commerce flow has no visible recipient validation",
+      severity: "medium",
+      missingWhen: /\b(?:recipient allowlist|merchant allowlist|allowed merchants|allowed recipients|domain allowlist|address allowlist|recipient validation|merchant validation|destination validation)\b/i,
+      message: "Agent payment systems need a clear boundary for which merchants, domains, wallet addresses, or APIs can be paid.",
+      remediation: "Validate payment recipients against an allowlist or signed merchant registry before authorizing payment.",
+      file: "README.md"
+    },
+    {
+      id: "agent-commerce-missing-replay-protection",
+      title: "Agent-commerce flow has no visible replay protection",
+      severity: "medium",
+      missingWhen: /\b(?:nonce|idempotency|idempotent|expires|expiration|expiry|ttl|timestamp|replay protection|request hash)\b/i,
+      message: "Payment requests should be hard to reuse after approval, retry, callback, or network failure.",
+      remediation: "Use nonces, idempotency keys, expirations, signed request hashes, or equivalent replay controls around payment requests.",
+      file: "README.md"
+    },
+    {
+      id: "agent-commerce-missing-receipts",
+      title: "Agent-commerce flow has no visible receipt or audit trail",
+      severity: "low",
+      missingWhen: /\b(?:receipt|ledger|audit trail|audit log|transaction id|txid|settlement record|payment log|usage event)\b/i,
+      message: "Users and reviewers need evidence of what was paid, to whom, why, and under which policy.",
+      remediation: "Record receipts or audit events with transaction IDs, recipient, amount, reason, and policy decision.",
+      file: "README.md"
+    },
+    {
+      id: "agent-commerce-metadata-pii-undocumented",
+      title: "Agent-commerce metadata privacy is undocumented",
+      severity: "low",
+      missingWhen: /\b(?:PII|personal data|metadata filter|redact|redaction|minimize metadata|data minimization|reason sanitization|privacy)\b/i,
+      message: "x402 and payment-agent requests can expose resource URLs, descriptions, reasons, or user context in payment metadata.",
+      remediation: "Document what payment metadata is sent and filter, redact, or minimize user-specific context before signing requests.",
+      file: "README.md"
+    }
+  ];
+
+  for (const check of checks) {
+    if (!check.missingWhen.test(docsAndSource)) {
+      findings.push({
+        id: check.id,
+        title: check.title,
+        severity: check.severity,
+        message: check.message,
+        remediation: check.remediation,
+        file: check.file
+      });
+    }
+  }
+
+  const hasWebhookLikeCode = /\b(?:webhook|callback|payment_intent|checkout\.session|settlement|payment\s+status)\b/i.test(docsAndSource);
+  const verifiesWebhookSignature = /\b(?:verifySignature|verifyWebhook|constructEvent|signature|signed payload|hmac|ed25519)\b/i.test(docsAndSource);
+  if (hasWebhookLikeCode && !verifiesWebhookSignature) {
+    findings.push({
+      id: "agent-commerce-unsigned-webhook",
+      title: "Agent-commerce callback may skip signature verification",
+      severity: "high",
+      message: "Payment status callbacks or webhooks should not grant access, credits, or receipts without validating sender authenticity.",
+      remediation: "Verify callback signatures or signed settlement payloads before changing payment, access, or usage state.",
+      file: "README.md"
+    });
+  }
+}
+
 async function checkMcpReleaseMetadata(root: string, pkg: PackageJson | null, findings: Finding[]): Promise<void> {
   const hasServerJson = await exists(path.join(root, "server.json"));
   const isLikelyMcpServer = Boolean(pkg && (
@@ -809,6 +922,38 @@ async function repoTextMatches(files: string[], pattern: RegExp): Promise<boolea
   }
 
   return false;
+}
+
+async function repositoryText(root: string, files: string[], extraRelativeFiles: string[]): Promise<string> {
+  const textParts: string[] = [];
+  const seen = new Set<string>();
+
+  for (const file of files) {
+    if (file.includes("node_modules") || file.includes(`${path.sep}dist${path.sep}`) || seen.has(file)) {
+      continue;
+    }
+
+    seen.add(file);
+    const text = await readText(file);
+    if (text) {
+      textParts.push(text);
+    }
+  }
+
+  for (const relativeFile of extraRelativeFiles) {
+    const fullPath = path.join(root, relativeFile);
+    if (seen.has(fullPath)) {
+      continue;
+    }
+
+    seen.add(fullPath);
+    const text = await readText(fullPath);
+    if (text) {
+      textParts.push(text);
+    }
+  }
+
+  return textParts.join("\n");
 }
 
 async function readText(filePath: string): Promise<string | null> {

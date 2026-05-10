@@ -12,7 +12,11 @@ It also checks common failure points in modern full-stack apps built with tools 
 
 For MCP packages, Shipcheck also checks launch metadata that directories and clients increasingly expect: `mcpName`, `server.json`, pinned package versions, npm package mapping, copyable install config, smoke-test proof, remote auth notes, and basic tool-safety documentation.
 
+For x402, API-payment, and payment-agent prototypes, Shipcheck checks the money-movement guardrails reviewers look for before they run a demo: sandbox mode, spend caps, approval checkpoints, recipient validation, replay protection, receipts, callback signature proof, and payment-metadata privacy notes.
+
 Tool page: https://tateprograms.com/shipcheck.html
+
+Agent Commerce Gate: https://tateprograms.com/agent-commerce-gate.html
 
 Free MCP launch self-check: https://tateprograms.com/mcp-self-check.html
 
@@ -125,6 +129,7 @@ Use Shipcheck from MCP clients:
 - Supabase usage without visible RLS migrations, policy notes, or access-boundary proof
 - debug, seed, reset, mock, or test API routes that may ship to production
 - external API usage without obvious rate limits, quotas, throttling, or cost guardrails
+- x402, API-payment, and payment-agent prototypes without sandbox/testnet mode, spend caps, user approval, recipient allowlists, replay protection, receipts, callback-signature verification, or payment-metadata privacy notes
 - MCP package metadata gaps such as missing `mcpName`, missing `server.json`, unpinned or mismatched registry package versions, missing install config, missing smoke-test proof, undocumented remote auth boundaries, or unclear tool-safety notes
 
 Shipcheck is a defensive static scanner, not a penetration test. It looks for review gaps and risky patterns in repos you own or are authorized to inspect.

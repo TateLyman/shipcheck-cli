@@ -1,6 +1,6 @@
 {
   "name": "shipcheck-cli",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Release-readiness and app exposure scanner for JavaScript and TypeScript repositories.",
   "type": "module",
   "homepage": "https://tateprograms.com/shipcheck.html",
@@ -37,6 +37,8 @@
     "stripe",
     "mcp",
     "model-context-protocol",
+    "x402",
+    "agent-commerce",
     "typescript",
     "javascript"
   ],
